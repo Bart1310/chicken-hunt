@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12131a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chicken Hunt">
+<title>Shoreditch Chicken Hunt</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%94%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* Layout: phone-first night map — sticky clock header, one working pane, bottom tab bar */
+:root{
+  --night:#12131a;--panel:#1c1e29;--panel-2:#262938;--line:#353a50;
+  --ink:#f1efe8;--mute:#a19fae;--yolk:#ffc23d;--yolk-ink:#2a1d00;--comb:#ff5d4f;--ok:#5fd38d;
+  --t1:#4fd1c5;--t2:#b68cff;--t3:#ff8a3d;
+  --f-display:"Bagel Fat One","Arial Black",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:12px;color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px);
+}
+*{box-sizing:border-box}
+html,body{background:var(--night);color:var(--ink);margin:0}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;min-height:100vh;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:1100;background:var(--night)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--yolk);outline-offset:2px}
+.wrap{max-width:600px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:1000;background:var(--night);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px}
+.brand{font-family:var(--f-display);font-size:20px;line-height:1;color:var(--yolk)}
+.brand small{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-top:4px}
+.clock{margin-left:auto;text-align:right}
+.clock .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);font-weight:600}
+.clock .val{font-family:var(--f-mono);font-weight:700;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.1}
+.clock .sub{font-family:var(--f-mono);font-size:12px;color:var(--yolk);font-variant-numeric:tabular-nums}
+.strip{background:var(--panel);border-bottom:1px solid var(--line)}
+.strip .wrap{display:flex;gap:8px;align-items:center;padding-block:8px;font-size:13px;font-weight:600;flex-wrap:wrap}
+.eggs{display:flex;gap:4px;margin-left:auto}
+.egg{width:14px;height:18px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;border:2px solid var(--yolk);opacity:.5}
+.egg.on{background:var(--yolk);opacity:1}
+.live{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.live.on{background:var(--ok)}
+main{padding-block:16px 110px}
+main.wrap{display:flex;flex-direction:column;gap:16px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.tabs .wrap{display:flex;gap:4px;padding-block:6px}
+nav.tabs button{flex:1;min-width:0;background:none;border:0;border-radius:10px;padding:8px 2px;font-size:12px;font-weight:700;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px;position:relative}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--yolk);background:var(--panel-2)}
+nav.tabs .dot{position:absolute;top:5px;right:calc(50% - 18px);width:8px;height:8px;border-radius:50%;background:var(--comb)}
+h1,h2,h3{margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:400;font-size:24px;line-height:1.1}
+h3{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+p{margin:0}
+.muted{color:var(--mute)}
+.small{font-size:13px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.section{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>.grow,.grow{flex:1;min-width:0}
+.btn{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:10px 16px;font-weight:700;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;color:var(--ink)}
+.btn.primary{background:var(--yolk);color:var(--yolk-ink);border-color:var(--yolk)}
+.btn.danger{background:transparent;color:var(--comb);border-color:var(--comb)}
+.btn.ghost{background:transparent}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:6px 12px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--yolk);color:var(--yolk-ink);border-color:var(--yolk)}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:var(--panel-2);color:var(--mute);white-space:nowrap}
+.tag.yolk{background:var(--yolk);color:var(--yolk-ink)}
+.tag.ok{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
+.tag.bad{background:color-mix(in srgb,var(--comb) 22%,transparent);color:var(--comb)}
+.tdot{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+label.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700;color:var(--mute);min-width:0}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=password],input[type=tel],select,textarea{background:var(--night);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;width:100%;min-width:0;color:var(--ink)}
+textarea{min-height:76px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:380px){.grid2{grid-template-columns:1fr}}
+.switch{display:flex;gap:12px;align-items:center;font-weight:600}
+.switch input{width:22px;height:22px;accent-color:var(--yolk)}
+
+/* map */
+.mapbox{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line);background:#191a22}
+#lmap{width:100%;height:min(62vh,560px);background:#191a22}
+.mapbtns{position:absolute;right:10px;bottom:28px;z-index:500;display:flex;flex-direction:column;gap:6px}
+.mapbtns button{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:17px;font-weight:800;display:grid;place-items:center}
+.maplegend{position:absolute;left:10px;top:10px;z-index:500;display:flex;gap:10px;flex-wrap:wrap;font-size:11px;font-weight:700;color:var(--mute);background:color-mix(in srgb,var(--panel) 90%,transparent);padding:6px 10px;border-radius:999px;max-width:calc(100% - 70px)}
+.maplegend span{display:inline-flex;align-items:center;gap:5px}
+.maphint{position:absolute;left:10px;right:60px;top:44px;z-index:500;font-size:12px;font-weight:700;background:var(--yolk);color:var(--yolk-ink);padding:6px 10px;border-radius:999px;width:max-content;max-width:calc(100% - 70px)}
+.leaflet-container{font-family:var(--f-body)}
+.leaflet-bar a,.leaflet-bar a:hover{background:var(--panel);color:var(--ink);border-color:var(--line)}
+.leaflet-control-attribution{background:rgba(18,19,26,.8)!important;color:var(--mute)!important;font-size:10px}
+.leaflet-control-attribution a{color:var(--mute)!important}
+.leaflet-tooltip{background:var(--panel);color:var(--ink);border:1px solid var(--line);font-weight:600;box-shadow:none}
+.leaflet-tooltip-top:before{border-top-color:var(--line)}
+.pdot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;color:#111;border:2px solid #12131a;box-shadow:0 0 0 2px currentColor}
+.pdot.old{opacity:.45}
+.medot{width:18px;height:18px;border-radius:50%;background:#4ea3ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(78,163,255,.25)}
+.hen{font-size:24px;line-height:1;filter:drop-shadow(0 0 4px #000)}
+
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--panel)}
+.item{display:flex;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.item:first-child{border-top:0}
+.item .name{font-weight:700;overflow-wrap:anywhere}
+.item .meta{font-size:13px;color:var(--mute);overflow-wrap:anywhere}
+.item.done .name{text-decoration:line-through;color:var(--mute)}
+.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;color:#111;flex:none}
+.feed{display:flex;flex-direction:column;gap:10px}
+.post{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.post.hint{border-color:color-mix(in srgb,var(--yolk) 55%,var(--line))}
+.post.alert{border-color:color-mix(in srgb,var(--comb) 60%,var(--line))}
+.post .head{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;color:var(--mute);flex-wrap:wrap}
+.post .body{font-size:16px;overflow-wrap:anywhere;white-space:pre-wrap}
+.photo{width:100%;border-radius:10px;background:var(--panel-2);cursor:zoom-in;border:0;padding:0;display:block}
+.photo img{width:100%;max-height:340px;object-fit:cover;border-radius:10px;display:block}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(0,120px) 1fr 34px;gap:10px;align-items:center;font-size:14px;font-weight:600}
+.bar .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .trk{height:12px;background:var(--panel-2);border-radius:6px;overflow:hidden}
+.bar .fill{display:block;height:100%;border-radius:6px}
+.bar .n{font-family:var(--f-mono);text-align:right}
+.hero{display:flex;flex-direction:column;gap:12px;padding-block:8px}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(38px,11vw,56px);line-height:.95;color:var(--yolk)}
+.hero h1 span{color:var(--ink)}
+.banner{border-radius:var(--r);padding:14px;display:flex;gap:12px;align-items:center;font-weight:600;flex-wrap:wrap}
+.banner.yolk{background:var(--yolk);color:var(--yolk-ink)}
+.banner.info{background:var(--panel-2)}
+.banner.bad{background:color-mix(in srgb,var(--comb) 20%,var(--panel));border:1px solid var(--comb)}
+.big{font-family:var(--f-mono);font-size:40px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.rules{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.teampick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.teampick button{border:2px solid var(--line);background:var(--panel-2);border-radius:var(--r);padding:12px 8px;font-weight:800;display:flex;align-items:center;gap:8px;font-size:14px;min-width:0;overflow-wrap:anywhere;text-align:left}
+.teampick button[aria-pressed="true"]{border-color:var(--yolk);background:var(--panel)}
+.award{display:flex;gap:12px;align-items:flex-start}
+.award .ico{font-size:28px;line-height:1;flex:none;width:36px;text-align:center}
+.award .t{font-weight:800}
+.power{display:flex;gap:12px;align-items:center}
+.power .ico{font-size:24px;width:40px;height:40px;border-radius:12px;background:var(--panel-2);display:grid;place-items:center;flex:none}
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1201;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+.sheet .wrap{display:flex;flex-direction:column;gap:14px;padding-block:14px}
+.grab{width:42px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.x{margin-left:auto;background:var(--panel-2);border:0;border-radius:50%;width:34px;height:34px;font-size:18px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:1300;background:var(--ink);color:var(--night);padding:10px 16px;border-radius:999px;font-weight:700;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:18px;text-align:center;color:var(--mute);font-size:14px}
+hr.sep{border:0;border-top:1px solid var(--line);margin:4px 0}
+details summary{cursor:pointer}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.4}}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand">Chicken Hunt<small>Shoreditch · Fri 6 Nov</small></div>
+  <div class="clock" id="clock"><div class="lbl">Loading</div><div class="val">--:--</div></div>
+</div></header>
+<div class="strip" id="strip" hidden></div>
+<main class="wrap" id="main"><div class="empty">Opening the game…</div></main>
+<nav class="tabs" id="tabs" hidden></nav>
+<div id="sheetRoot"></div>
+<div id="toastRoot"></div>
+
+<script src="config.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
+<script>
+/* ================= constants ================= */
+const POWERS={
+  hint:{i:"💡",n:"Bonus clue",d:"The chickens send your team a private clue."},
+  question:{i:"❓",n:"Yes/No question",d:"Ask the chickens one yes/no question."},
+  compass:{i:"🧭",n:"Compass",d:"The chickens tell you which direction to walk."},
+  peek:{i:"🔭",n:"Zone peek",d:"See the next, smaller zone straight away."},
+  sabotage:{i:"🍺",n:"Sabotage",d:"Pick a rival team. One of them has to drink."}
+};
+const DRINKS=["Pint","Half","Shot","Wine","Cocktail","Cider"];
+const REASONS=["Wrong bar","Sabotaged","Penalty from the chickens","Just thirsty"];
+const SEEKERS=["t1","t2","t3"];
+const RADII=[750,480,280,140];
+const DIRS=["N","NE","E","SE","S","SW","W","NW"];
+const CENTER={lat:51.5245,lng:-0.0790};
+
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}};
+const ms=v=>typeof v==="number"?v:Date.parse(v);
+const LDN={timeZone:"Europe/London"};
+const fmtT=v=>new Intl.DateTimeFormat("en-GB",{...LDN,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(ms(v)));
+const fmtD=v=>new Intl.DateTimeFormat("en-GB",{...LDN,weekday:"short",day:"numeric",month:"short"}).format(new Date(ms(v)));
+function hms(x){x=Math.max(0,x);const s=Math.floor(x/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),z=s%60;const p=n=>String(n).padStart(2,"0");return h?`${h}:${p(m)}:${p(z)}`:`${p(m)}:${p(z)}`}
+function ago(v){const m=Math.round((Date.now()-ms(v))/60000);return m<1?"just now":m<60?m+" min ago":Math.floor(m/60)+"h "+(m%60)+"m ago"}
+function tzOff(t){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{...LDN,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-t}
+function londonToMs(ds,ts){const[y,m,d]=ds.split("-").map(Number),[h,mi]=ts.split(":").map(Number);const g=Date.UTC(y,m-1,d,h,mi);return g-tzOff(g)}
+function londonParts(t){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{...LDN,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(t)).map(x=>[x.type,x.value]));return{date:`${p.year}-${p.month}-${p.day}`,time:`${p.hour}:${p.minute}`}}
+const KX=111320*Math.cos(CENTER.lat*Math.PI/180),KY=110574;
+const P=(lng,lat)=>[(lng-CENTER.lng)*KX,(CENTER.lat-lat)*KY];
+const UNP=(x,y)=>({lng:x/KX+CENTER.lng,lat:CENTER.lat-y/KY});
+const dist=(a,b)=>{const p=P(a.lng,a.lat),q=P(b.lng,b.lat);return Math.hypot(p[0]-q[0],p[1]-q[1])};
+function bearing(a,b){const p=P(a.lng,a.lat),q=P(b.lng,b.lat);const ang=(Math.atan2(q[0]-p[0],p[1]-q[1])*180/Math.PI+360)%360;return DIRS[Math.round(ang/45)%8]}
+function toast(msg){const r=$("#toastRoot");r.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;clearTimeout(toast.t);toast.t=setTimeout(()=>r.innerHTML="",3400)}
+const norm=s=>String(s||"").toLowerCase().replace(/^the\s+/,"").replace(/[^a-z0-9]/g,"");
+
+/* ================= setup check ================= */
+const CFG=window.CHICKEN_CONFIG||{};
+const CONFIGURED=!!(CFG.supabaseUrl&&CFG.supabaseKey&&!/YOUR-/.test(CFG.supabaseUrl+CFG.supabaseKey));
+const sb=CONFIGURED&&window.supabase?window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey):null;
+
+/* ================= state ================= */
+const S={cfg:null,teams:{},venues:[],players:{},drinks:[],clues:[],claims:{},reqs:[],found:{},hints:[],visits:[],gm:null,
+  loaded:false,live:false,tab:null,showAll:false,pickMode:false,pick:null,draft:null,joinTeam:null,joinName:null,dr:null,osm:null,resetArm:false,pinBad:false,
+  gps:{on:ls.get("ch_gps")==="1",watch:null,pos:null,sent:null,err:null,wake:ls.get("ch_wake")==="1",lock:null}};
+try{S.id=JSON.parse(ls.get("ch_id")||"null")}catch(e){S.id=null}
+const saveId=()=>ls.set("ch_id",S.id?JSON.stringify(S.id):null);
+
+const myTeam=()=>S.id?.team||null;
+const isGM=()=>myTeam()==="h";
+const team=t=>S.teams[t]||{name:t,color:"#888",members:[]};
+const tName=t=>team(t).name;
+const tCol=t=>team(t).color;
+const venues=()=>S.venues.filter(v=>!v.hidden);
+const venue=id=>S.venues.find(v=>v.id===id);
+const zones=()=>S.cfg?.zones||[];
+const powerBars=()=>(S.cfg?.power_bars||[]).filter(p=>p.venue);
+const powerAt=id=>powerBars().find(p=>p.venue===id);
+const mineVisited=()=>new Set(S.visits.map(v=>v.venue));
+
+function T(){
+  const c=S.cfg;if(!c||!c.start_at)return{phase:"setup",zi:0,n:4};
+  const st=ms(c.start_at),dur=(c.duration_min||120)*60000,now=Date.now();
+  const nf=SEEKERS.filter(t=>S.found[t]).length;
+  const n=zones().length||4,w=dur/n,el=now-st;
+  const phase=now<st?"pre":(c.ended||now>=st+dur||nf>=3)?"over":"live";
+  const zi=Math.max(0,Math.min(n-1,Math.floor(el/w)));
+  return{phase,st,dur,now,el,zi,w,n,next:st+(zi+1)*w,end:st+dur};
+}
+const zoneAt=t=>{const x=T();if(!x.st)return 0;return Math.max(0,Math.min(x.n-1,Math.floor((ms(t)-x.st)/x.w)))};
+const peekActive=()=>Object.values(S.claims).some(c=>c.team===myTeam()&&c.power==="peek"&&c.used&&zoneAt(c.used_at)===T().zi);
+
+/* ================= data ================= */
+const TABLES=["config","teams","venues","players","drinks","clues","claims","requests","found"];
+async function load(t){
+  let q=sb.from(t).select("*");
+  if(t==="drinks")q=q.order("ts",{ascending:false}).limit(1000);
+  if(t==="teams")q=q.order("sort");
+  const{data,error}=await q;if(error){console.warn(t,error);return}
+  switch(t){
+    case"config":S.cfg=data[0]||null;break;
+    case"teams":S.teams={};data.forEach(r=>S.teams[r.id]=r);break;
+    case"venues":S.venues=data;break;
+    case"players":S.players={};data.forEach(r=>S.players[r.id]=r);break;
+    case"drinks":S.drinks=data;break;
+    case"clues":S.clues=data;break;
+    case"claims":S.claims={};data.forEach(r=>S.claims[r.venue]=r);break;
+    case"requests":S.reqs=data;break;
+    case"found":S.found={};data.forEach(r=>S.found[r.team]=r);break;
+  }
+  schedule();
+}
+const soon={};function reloadSoon(t){clearTimeout(soon[t]);soon[t]=setTimeout(()=>load(t),250)}
+async function loadPrivate(){
+  if(!S.id)return;
+  const h=await sb.rpc("released_hints");if(!h.error)S.hints=h.data||[];
+  if(isGM()){const r=await sb.rpc("gm_state",{p_pin:S.id.pin});if(r.error){if(/wrong_pin/.test(r.error.message))S.pinBad=true}else{S.gm=r.data;S.pinBad=false}}
+  else{const r=await sb.rpc("team_state",{p_team:S.id.team,p_pin:S.id.pin});if(r.error){if(/wrong_pin/.test(r.error.message))S.pinBad=true}else{S.visits=r.data.visits||[];S.pinBad=false}}
+  schedule();
+}
+async function rpc(fn,args,okMsg){
+  const{data,error}=await sb.rpc(fn,args);
+  if(error){console.error(fn,error);const m=error.message||"";
+    if(/wrong_pin/.test(m)){toast("That PIN doesn't match. Ask the chickens for your team's PIN.");if(fn!=="join_game"){S.pinBad=true;schedule()}}
+    else if(/pin_too_short/.test(m))toast("PINs need at least 3 characters.");
+    else if(/not_available/.test(m))toast("That power-up is already used.");
+    else toast("That didn't save. Check your signal and try again.");
+    return{error}}
+  if(okMsg)toast(okMsg);return{data};
+}
+const auth=()=>({p_team:S.id.team,p_pin:S.id.pin});
+async function boot(){
+  if(!sb){render();return}
+  await Promise.all(TABLES.map(load));
+  S.loaded=true;
+  const ch=sb.channel("hunt");
+  TABLES.forEach(t=>ch.on("postgres_changes",{event:"*",schema:"public",table:t},()=>reloadSoon(t)));
+  ch.subscribe(st=>{S.live=st==="SUBSCRIBED";renderStrip()});
+  loadPrivate();
+  setInterval(()=>TABLES.forEach(load),60000);
+  setInterval(()=>{if(document.visibilityState==="visible")loadPrivate()},12000);
+  if(S.gps.on&&S.id)gpsStart(true);
+  render();
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&sb&&S.loaded){TABLES.forEach(load);loadPrivate();if(S.gps.on)gpsStart(true);else if(S.gps.wake)wakeOn()}});
+
+/* ================= live location ================= */
+function gpsStart(quiet){
+  if(!navigator.geolocation){if(!quiet)toast("This phone can't share its location.");return}
+  S.gps.on=true;ls.set("ch_gps","1");
+  if(S.gps.watch!==null)navigator.geolocation.clearWatch(S.gps.watch);
+  S.gps.watch=navigator.geolocation.watchPosition(onPos,onPosErr,{enableHighAccuracy:true,maximumAge:10000,timeout:30000});
+  if(S.gps.wake)wakeOn();
+  schedule();
+}
+function gpsStop(){S.gps.on=false;ls.set("ch_gps",null);if(S.gps.watch!==null)navigator.geolocation.clearWatch(S.gps.watch);S.gps.watch=null;S.gps.pos=null;schedule()}
+function onPos(p){
+  const c={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,ts:Date.now()};
+  const first=!S.gps.pos;S.gps.pos=c;S.gps.err=null;
+  if(map)drawLayers();if(first)schedule();
+  const l=S.gps.sent;
+  if(S.id&&!isGM()&&(!l||c.ts-l.ts>25000||(dist(l,c)>30&&c.ts-l.ts>8000))){
+    S.gps.sent=c;
+    sb.rpc("set_location",{...auth(),p_player:S.id.player,p_name:S.id.name,p_lat:c.lat,p_lng:c.lng,p_acc:Math.round(c.acc||0)}).then(r=>{if(r.error)console.warn(r.error)});
+  }
+}
+function onPosErr(e){S.gps.err=e.code===1?"Location is blocked for this site. Allow it in your browser settings.":"Can't get a GPS fix right now.";schedule()}
+async function wakeOn(){try{if("wakeLock"in navigator&&document.visibilityState==="visible"){S.gps.lock=await navigator.wakeLock.request("screen")}}catch(e){}}
+function wakeOff(){try{S.gps.lock?.release()}catch(e){}S.gps.lock=null}
+
+/* ================= photos ================= */
+async function shrink(file){try{const img=await createImageBitmap(file);const s=Math.min(1,1400/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(b=>r(b||file),"image/jpeg",.82))}catch(e){return file}}
+async function uploadPhoto(file){
+  if(!file)return"";const b=await shrink(file);
+  const ext=(b.type||"image/jpeg").split("/")[1].replace("jpeg","jpg");
+  const path=`${S.id.team}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const{error}=await sb.storage.from("photos").upload(path,b,{contentType:b.type||"image/jpeg",upsert:false});
+  if(error)throw error;return path;
+}
+const imgUrl=p=>sb.storage.from("photos").getPublicUrl(p).data.publicUrl;
+const photoBtn=p=>p?`<button class="photo" data-act="zoom" data-img="${esc(p)}" aria-label="Open photo"><img src="${esc(imgUrl(p))}" alt="Photo" loading="lazy"></button>`:"";
+
+/* ================= render ================= */
+let raf=0;function schedule(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;render()})}
+function formFocused(){const a=document.activeElement;return a&&$("#main").contains(a)&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)}
+document.addEventListener("focusout",()=>setTimeout(()=>{if(S.pendingRender&&!formFocused())render()},60));
+function render(){
+  if(formFocused()){S.pendingRender=true;renderClock();return}
+  S.pendingRender=false;
+  renderClock();renderStrip();renderTabs();
+  const m=$("#main");
+  if(!CONFIGURED){m.innerHTML=`<div class="card"><h2>Almost there</h2><p>Open <b>config.js</b> and paste your Supabase project URL and publishable key. Then reload this page.</p></div>`;return}
+  if(!sb){m.innerHTML=`<div class="banner bad">The game couldn't load its libraries. Check your internet connection and reload.</div>`;return}
+  if(!S.loaded){m.innerHTML=`<div class="empty">Opening the game…</div>`;return}
+  if(!S.id){m.innerHTML=viewJoin();return}
+  const tabs=tabList();if(!tabs.some(t=>t.id===S.tab))S.tab=tabs[0].id;
+  const v={hunt:viewHunt,clues:viewClues,drinks:viewDrinks,team:viewTeam,live:viewLive,gclues:viewGMClues,setup:viewSetup,awards:viewAwards}[S.tab];
+  m.innerHTML=(S.pinBad?`<div class="banner bad"><span class="grow">Your PIN no longer works. The chickens may have changed it.</span><button class="btn sm" data-act="leave">Join again</button></div>`:"")+v();
+  mountMap();
+}
+const I={
+ map:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>`,
+ bulb:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>`,
+ glass:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h10v15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><path d="M16 8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M6 9h10"/></svg>`,
+ ppl:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>`,
+ radar:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12 18 6"/></svg>`,
+ cog:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>`,
+ cup:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>`
+};
+function tabList(){
+  if(isGM())return[{id:"live",l:"Live",i:I.radar,dot:inbox().length>0},{id:"gclues",l:"Clues",i:I.bulb},{id:"drinks",l:"Drinks",i:I.glass},{id:"setup",l:"Setup",i:I.cog},{id:"awards",l:"Awards",i:I.cup}];
+  const l=[{id:"hunt",l:"Hunt",i:I.map},{id:"clues",l:"Clues",i:I.bulb,dot:newClues()},{id:"drinks",l:"Drinks",i:I.glass},{id:"team",l:"Team",i:I.ppl}];
+  if(T().phase==="over")l.push({id:"awards",l:"Awards",i:I.cup});
+  return l;
+}
+function renderTabs(){
+  const n=$("#tabs");if(!S.id||!S.loaded){n.hidden=true;return}
+  n.hidden=false;
+  n.innerHTML=`<div class="wrap">${tabList().map(t=>`<button data-tab="${t.id}" ${S.tab===t.id?'aria-current="page"':""}>${t.i}<span>${t.l}</span>${t.dot?'<i class="dot"></i>':""}</button>`).join("")}</div>`;
+}
+function renderStrip(){
+  const s=$("#strip");if(!S.id||!S.loaded){s.hidden=true;return}
+  const nf=SEEKERS.filter(t=>S.found[t]).length,mine=S.found[myTeam()];
+  const txt=mine?`You found the chickens at ${fmtT(mine.ts)}`:nf===0?"No team has found the chickens yet":`${nf} of 3 teams found the chickens`;
+  s.hidden=false;
+  s.innerHTML=`<div class="wrap"><i class="live ${S.live?"on":""}" title="${S.live?"Live":"Reconnecting"}"></i><span class="tdot" style="background:${tCol(myTeam())}"></span><span>${esc(S.id.name)} · ${esc(tName(myTeam()))}</span><span class="muted">·</span><span>${txt}</span><span class="eggs" aria-hidden="true">${[0,1,2].map(i=>`<i class="egg ${i<nf?"on":""}"></i>`).join("")}</span></div>`;
+}
+let lastKey="";
+function renderClock(){
+  const c=$("#clock"),t=T();let lbl,val,sub="";
+  if(t.phase==="setup"){lbl="Status";val="Not set"}
+  else if(t.phase==="pre"){lbl="Hunt starts in";val=hms(t.st-t.now);sub=`${fmtD(t.st)} · ${fmtT(t.st)}`}
+  else if(t.phase==="live"){lbl="Time left";val=hms(t.end-t.now);sub=zones().length?(t.zi<t.n-1?`Zone shrinks in ${hms(t.next-t.now)}`:"Final zone"):""}
+  else{lbl="Hunt";val="Over"}
+  c.innerHTML=`<div class="lbl">${lbl}</div><div class="val">${val}</div>${sub?`<div class="sub">${sub}</div>`:""}`;
+  const key=t.phase+":"+t.zi;
+  if(key!==lastKey){const changed=!!lastKey;lastKey=key;if(changed&&sb&&S.loaded){loadPrivate();if(t.phase==="live"&&S.id&&!isGM())toast(t.zi>0?"The zone just shrank.":"The hunt has started.")}schedule()}
+}
+setInterval(()=>{renderClock();const b=$("#bigcount");if(b){const t=T();b.textContent=hms(t.st-t.now)}},1000);
+setInterval(()=>{if(sb&&S.loaded&&document.visibilityState==="visible")sb.rpc("released_hints").then(r=>{if(!r.error&&JSON.stringify(r.data)!==JSON.stringify(S.hints)){S.hints=r.data||[];schedule()}})},30000);
+
+/* ================= join ================= */
+function viewJoin(){
+  const list=Object.values(S.teams).sort((a,b)=>a.sort-b.sort).filter(t=>t.id!=="h").concat(S.teams.h?[S.teams.h]:[]);
+  const sel=S.joinTeam?team(S.joinTeam):null;const mem=sel?.members||[];
+  return `<section class="hero"><h1>Find the <span>chickens.</span></h1>
+  <p>Four colleagues are drinking in one Shoreditch pub. Three teams race to find them. Every wrong bar costs your team a drink.</p></section>
+  <div class="card"><h3>1 · Your team</h3>
+    <div class="teampick">${list.map(t=>`<button data-jt="${t.id}" aria-pressed="${S.joinTeam===t.id}"><span class="tdot" style="background:${t.color};width:16px;height:16px"></span>${esc(t.name)}</button>`).join("")}</div>
+  ${sel?`<h3>2 · Your name</h3>
+    ${mem.length?`<div class="chips">${mem.map(n=>`<button class="chip" data-jn="${esc(n)}" aria-pressed="${S.joinName===n}">${esc(n)}</button>`).join("")}<button class="chip" data-jn="" aria-pressed="${S.joinName===""}">Someone else</button></div>`:""}
+    ${!mem.length||S.joinName===""?`<label class="fld" for="jn">Name<input type="text" id="jn" maxlength="24" autocomplete="nickname" placeholder="e.g. Sanne"></label>`:""}
+    <h3>3 · ${sel.id==="h"?"Chicken PIN":"Team PIN"}</h3>
+    <label class="fld" for="jp">The chickens gave your team this PIN<input type="tel" id="jp" inputmode="numeric" maxlength="12" autocomplete="off"></label>
+    <button class="btn primary block" data-act="join">Join ${esc(sel.name)}</button>`:""}
+  </div>
+  <div class="card"><h3>How it works</h3>${rulesHTML()}</div>`;
+}
+function rulesHTML(){
+  return `<ol class="rules"><li>The four chickens sit in one pub inside the zone. They don't move.</li>
+  <li>The zone shrinks every ${Math.round((S.cfg?.duration_min||120)/4)} minutes. The chickens are always inside it.</li>
+  <li>You've found them when you walk in and see them. Sit down quietly and join them.</li>
+  <li>Wrong bar? Everyone in your team drinks. Log it here, with a photo.</li>
+  <li>Some bars hide a power-up. The first team to claim it there gets it.</li>
+  <li>No soft drinks.</li></ol>`;
+}
+async function doJoin(){
+  const t=S.joinTeam;if(!t)return toast("Pick your team.");
+  const name=(S.joinName||$("#jn")?.value||"").trim();if(!name)return toast("Pick or type your name.");
+  const pin=($("#jp")?.value||"").trim();if(!pin)return toast("Enter the PIN.");
+  const r=await rpc("join_game",{p_team:t,p_pin:pin,p_name:name});if(r.error)return;
+  S.id={player:r.data,team:t,pin,name};saveId();S.pinBad=false;S.tab=null;S.visits=[];S.gm=null;
+  toast(t==="h"?"Welcome, chicken.":"You're in "+tName(t)+".");
+  await loadPrivate();render();
+}
+
+/* ================= map (Leaflet) ================= */
+let map=null,layer=null,fitKey="";
+const mapHost=document.createElement("div");mapHost.className="mapbox";
+mapHost.innerHTML=`<div id="lmap"></div><div class="maplegend" id="legend"></div><div class="maphint" id="maphint" hidden></div>
+<div class="mapbtns"><button data-act="locate" aria-label="Show my position">◉</button><button data-act="zfit" aria-label="Fit the zone">◎</button></div>`;
+const mapSlot=hint=>`<div id="mapSlot" data-hint="${esc(hint||"")}"></div>`;
+function mountMap(){
+  const slot=$("#mapSlot");if(!slot)return;
+  const hint=slot.dataset.hint;slot.replaceWith(mapHost);
+  const h=mapHost.querySelector("#maphint");h.hidden=!hint;h.textContent=hint||"";
+  mapHost.querySelector("#legend").innerHTML=isGM()?`<span class="hen" style="font-size:13px">🐔</span><span>Hideout</span>${SEEKERS.map(t=>`<span><i class="tdot" style="background:${tCol(t)}"></i>${esc(tName(t))}</span>`).join("")}`:`<span><i class="tdot" style="background:#e9e4d6"></i>Bar</span><span><i class="tdot" style="background:var(--yolk)"></i>Power-up</span><span><i class="tdot" style="background:#4ea3ff"></i>You</span>`;
+  if(!map){
+    map=L.map(mapHost.querySelector("#lmap"),{zoomControl:true,attributionControl:true}).setView([CENTER.lat,CENTER.lng],15);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd",maxZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+    layer=L.layerGroup().addTo(map);
+    map.on("click",e=>{if(S.pickMode){S.pick={lat:e.latlng.lat,lng:e.latlng.lng};drawLayers();const f=$("#pickInfo");if(f)f.textContent="Spot set. Give it a name below."}});
+  }
+  requestAnimationFrame(()=>{map.invalidateSize();const key=S.tab+"|"+T().zi+"|"+zones().length+"|"+(zones()[0]?.lat||0);if(key!==fitKey){fitKey=key;fitZone()}drawLayers()});
+}
+function fitZone(){
+  if(!map)return;const z=zones(),setup=isGM()&&S.tab==="setup";
+  const zz=setup?(S.draft?.zones?.[0]||z[0]):z[T().zi];
+  if(zz)map.fitBounds(L.latLng(zz.lat,zz.lng).toBounds(zz.r*2.1),{animate:false});
+  else map.setView([CENTER.lat,CENTER.lng],15,{animate:false});
+}
+function circlePts(z){const c=P(z.lng,z.lat),pts=[];for(let i=0;i<72;i++){const a=i/72*Math.PI*2;const q=UNP(c[0]+Math.cos(a)*z.r,c[1]+Math.sin(a)*z.r);pts.push([q.lat,q.lng])}return pts}
+function drawLayers(){
+  if(!map||!layer)return;layer.clearLayers();
+  const t=T(),gm=isGM(),setup=gm&&S.tab==="setup";
+  const z=setup&&S.draft?S.draft.zones:zones();
+  if(z.length){
+    const cur=z[setup?0:t.zi];
+    if(!setup)L.polygon([[[53,-2],[53,2],[50,2],[50,-2]],circlePts(cur)],{stroke:false,fillColor:"#05060a",fillOpacity:.55,interactive:false}).addTo(layer);
+    const showNext=!setup&&t.zi<z.length-1&&(gm||peekActive());
+    const list=setup?z.map((zz,i)=>({zz,i})):[{zz:cur,i:t.zi}].concat(showNext?[{zz:z[t.zi+1],i:t.zi+1,next:true}]:[]);
+    list.forEach(({zz,i,next})=>{const thin=next||(setup&&i>0);
+      L.circle([zz.lat,zz.lng],{radius:zz.r,color:"#ffc23d",weight:thin?1.5:3,dashArray:thin?"6 6":null,fill:false,interactive:false,opacity:setup?1-i*.18:1}).addTo(layer)});
+  }
+  const done=gm?new Set():mineVisited();
+  const hide=gm?S.gm?.secret?.hideout:null;
+  const list=setup?S.venues:venues();
+  list.forEach(v=>{
+    const pw=powerAt(v.id),cl=S.claims[v.id],isDone=done.has(v.id);
+    if(hide===v.id){L.marker([v.lat,v.lng],{icon:L.divIcon({className:"",html:'<div class="hen">🐔</div>',iconSize:[26,26],iconAnchor:[13,13]})}).on("click",()=>openVenue(v.id)).addTo(layer);return}
+    const fill=v.hidden?"#555":isDone?"#3a3d4f":pw&&!cl?"#ffc23d":"#e9e4d6";
+    if(pw&&!cl&&!isDone)L.circleMarker([v.lat,v.lng],{radius:11,color:"#ffc23d",weight:2,fill:false,interactive:false}).addTo(layer);
+    L.circleMarker([v.lat,v.lng],{radius:pw?7:6,color:isDone?"#ff5d4f":"#12131a",weight:isDone?2:1.5,fillColor:fill,fillOpacity:1})
+      .bindTooltip(esc(v.name),{direction:"top",offset:[0,-6]}).on("click",()=>openVenue(v.id)).addTo(layer);
+  });
+  if(gm&&S.gm)(S.gm.locations||[]).forEach(l=>{const old=Date.now()-ms(l.ts)>10*60000;
+    L.marker([l.lat,l.lng],{icon:L.divIcon({className:"",html:`<div class="pdot ${old?"old":""}" style="background:${tCol(l.team)};color:${tCol(l.team)}"><span style="color:#111">${esc((l.name||"?")[0].toUpperCase())}</span></div>`,iconSize:[26,26],iconAnchor:[13,13]}),zIndexOffset:500})
+      .bindTooltip(`${esc(l.name)} · ${esc(tName(l.team))} · ${ago(l.ts)}`,{direction:"top",offset:[0,-12]}).addTo(layer)});
+  if(S.gps.pos)L.marker([S.gps.pos.lat,S.gps.pos.lng],{icon:L.divIcon({className:"",html:'<div class="medot"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false,zIndexOffset:900}).addTo(layer);
+  if(S.pick)L.circleMarker([S.pick.lat,S.pick.lng],{radius:9,color:"#f1efe8",weight:2,fillColor:"#ff5d4f",fillOpacity:1}).addTo(layer);
+}
+
+/* ================= seeker: hunt ================= */
+function inZone(v){const z=zones();if(!z.length)return true;const zz=z[T().zi];return dist(v,zz)<=zz.r}
+function gpsCard(){
+  if(isGM())return"";
+  if(!S.gps.on)return`<div class="banner info"><span class="grow">Share your live location so the chickens can follow the hunt.</span><button class="btn sm primary" data-act="gpsOn">Share location</button></div>`;
+  if(S.gps.err)return`<div class="banner bad"><span class="grow">${esc(S.gps.err)}</span><button class="btn sm" data-act="gpsOn">Try again</button></div>`;
+  return"";
+}
+function viewHunt(){
+  const t=T(),z=zones(),mine=S.found[myTeam()];let top="";
+  if(t.phase==="setup"||!z.length)top=`<div class="banner info">The chickens are still drawing the zone. Check back soon.</div>`;
+  else if(t.phase==="pre")top=`<div class="card"><h3>The hunt starts in</h3><div class="big" id="bigcount">${hms(t.st-t.now)}</div><p class="muted">${fmtD(t.st)} at ${fmtT(t.st)} London time. Meet at <b style="color:var(--ink)">${esc(S.cfg.meet||"the start point")}</b>. You can already scout the zone below.</p></div>`;
+  else if(mine)top=`<div class="banner yolk"><span style="font-size:28px">🐔</span><span class="grow">You found them at ${fmtT(mine.ts)}. Sit down, act natural, and don't tell the others.</span></div>`;
+  else if(t.phase==="over")top=`<div class="banner info">The hunt is over. Open Awards to see who won.</div>`;
+  else if(peekActive())top=`<div class="banner yolk"><span style="font-size:22px">🔭</span><span class="grow">Zone peek is on. The dashed circle is the next zone.</span></div>`;
+  const zz=z[t.zi];const vs=venues().filter(v=>S.showAll||inZone(v));
+  if(zz)vs.sort((a,b)=>dist(a,zz)-dist(b,zz));
+  if(S.gps.pos)vs.sort((a,b)=>dist(a,S.gps.pos)-dist(b,S.gps.pos));
+  const done=mineVisited();const left=vs.filter(v=>!done.has(v.id)).length;
+  return `${top}${gpsCard()}${mapSlot()}
+  <div class="row"><h3 class="grow">${S.showAll?"All bars":"Bars in the zone"} · ${left} to check${S.gps.pos?" · nearest first":""}</h3><button class="btn sm ghost" data-act="toggleAll">${S.showAll?"Only the zone":"Show all"}</button></div>
+  <div class="list">${vs.map(v=>venueRow(v,done.has(v.id))).join("")||`<div class="item"><span class="muted">No bars in this zone.</span></div>`}</div>`;
+}
+function venueRow(v,done){
+  const pw=powerAt(v.id),cl=S.claims[v.id];const d=S.gps.pos?` · ${Math.round(dist(v,S.gps.pos))} m`:"";
+  return `<button class="item ${done?"done":""}" data-act="venue" data-id="${esc(v.id)}"><div class="grow"><div class="name">${esc(v.name)}</div><div class="meta">${esc(v.address)}${d}</div></div>
+  ${done?`<span class="tag bad">Checked</span>`:""}${pw?(cl?`<span class="tag">Power-up taken</span>`:`<span class="tag yolk">${POWERS[pw.power].i} Power-up</span>`):""}</button>`;
+}
+const gmaps=v=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(v.name+", "+(v.address||"")+", London");
+function openVenue(id){
+  const v=venue(id);if(!v)return;const t=T(),gm=isGM();
+  const pw=powerAt(id),cl=S.claims[id],done=mineVisited().has(id);
+  let b=`<div class="row"><div class="grow"><h2>${esc(v.name)}</h2><p class="muted">${esc(v.address)}${S.gps.pos?` · ${Math.round(dist(v,S.gps.pos))} m away`:""}</p></div><button class="x" data-act="close" aria-label="Close">×</button></div>`;
+  if(!gm&&zones().length)b+=`<div class="row">${inZone(v)?`<span class="tag ok">Inside the zone</span>`:`<span class="tag bad">Outside the zone</span>`}${done?`<span class="tag bad">Your team checked it</span>`:""}</div>`;
+  if(pw)b+=`<div class="card"><div class="power"><span class="ico">${POWERS[pw.power].i}</span><div class="grow"><b>${POWERS[pw.power].n}</b><p class="muted small">${POWERS[pw.power].d}</p></div></div>
+    ${cl?`<span class="tag">${gm?"Claimed by "+esc(tName(cl.team)):cl.team===myTeam()?"Your team has it":"Already claimed"}</span>`:(!gm&&t.phase==="live"?`<button class="btn primary" data-act="claim" data-id="${esc(id)}">We're here, claim it</button>`:`<span class="muted small">${gm?"Not claimed yet":"Claimable once the hunt starts"}</span>`)}</div>`;
+  if(gm){
+    const hide=S.gm?.secret?.hideout;
+    b+=`<button class="btn ${hide===id?"":"primary"}" data-act="setHide" data-id="${esc(id)}">${hide===id?"This is our hideout ✓":"Set as our hideout"}</button>
+    <h3>Visits</h3><div class="small">${SEEKERS.map(tm=>{const x=(S.gm?.visits||[]).find(q=>q.team===tm&&q.venue===id);return x?`<div><span class="tdot" style="background:${tCol(tm)}"></span> ${esc(tName(tm))} at ${fmtT(x.ts)}</div>`:""}).join("")||"No team has been here."}</div>
+    <button class="btn sm ghost" data-act="hideVenue" data-id="${esc(id)}" data-h="${v.hidden?0:1}" style="align-self:flex-start">${v.hidden?"Put this bar back in the game":"Remove this bar from the game"}</button>`;
+  }else if(t.phase==="live"&&!S.found[myTeam()]){
+    b+=`<button class="btn primary block" data-act="checked" data-id="${esc(id)}">Checked it. Not here, log our drinks</button>`;
+  }
+  b+=`<a class="btn ghost block" href="${gmaps(v)}" target="_blank" rel="noopener">Directions in Google Maps ↗</a>`;
+  openSheet(b);
+}
+async function markChecked(id){
+  closeSheet();
+  const r=await rpc("check_bar",{...auth(),p_player:S.id.player,p_venue:id});if(r.error)return;
+  if(!S.visits.some(v=>v.venue===id))S.visits.push({venue:id,ts:new Date().toISOString(),team:myTeam()});
+  render();openDrink({reason:"Wrong bar",all:true});
+}
+async function claimPower(id){
+  const r=await rpc("claim_power",{...auth(),p_venue:id});if(r.error)return;
+  closeSheet();
+  if(r.data==="ok"){rpc("check_bar",{...auth(),p_player:S.id.player,p_venue:id});toast(POWERS[powerAt(id).power].n+" is yours. Use it from Clues.")}
+  else toast(r.data==="taken"?"Too late, another team got it.":"There's no power-up here.");
+}
+
+/* ================= drinks ================= */
+function teamMembers(tm){
+  const fromPlayers=Object.values(S.players).filter(p=>p.team===tm);
+  return fromPlayers.sort((a,b)=>a.name.localeCompare(b.name));
+}
+function openDrink(pre={}){
+  const tm=myTeam(),members=teamMembers(tm);
+  const sel=new Set(pre.all?members.map(p=>p.id):[S.id.player]);
+  S.dr={sel,drink:"Pint"};
+  openSheet(`<div class="row"><h2 class="grow">Log a drink</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <div class="section"><h3>Who drank</h3><div class="chips">${members.map(p=>`<button class="chip" data-who="${p.id}" aria-pressed="${sel.has(p.id)}">${esc(p.name)}</button>`).join("")}</div>
+  ${members.length<team(tm).members.length?`<p class="muted small">Teammates show up here once they've joined on their own phone.</p>`:""}</div>
+  <div class="section"><h3>What</h3><div class="chips">${DRINKS.map(d=>`<button class="chip" data-what="${d}" aria-pressed="${d==="Pint"}">${d}</button>`).join("")}</div><p class="muted small">Soft drinks are not on the list. That's the rule.</p></div>
+  <label class="fld" for="drWhy">Why<select id="drWhy">${REASONS.map(r=>`<option ${r===(pre.reason||(tm==="h"?"Just thirsty":"Wrong bar"))?"selected":""}>${r}</option>`).join("")}</select></label>
+  <label class="fld" for="drPhoto">Photo proof<input type="file" id="drPhoto" accept="image/*"></label>
+  <button class="btn primary block" data-act="saveDrink" id="drSave">Log it</button>`);
+}
+async function saveDrink(){
+  const d=S.dr;if(!d||!d.sel.size)return toast("Pick who drank.");
+  const btn=$("#drSave");btn.disabled=true;btn.textContent="Saving…";
+  let photo="";try{photo=await uploadPhoto($("#drPhoto")?.files?.[0])}catch(e){console.error(e);toast("The photo didn't upload. Logging without it.")}
+  const reason=$("#drWhy").value;
+  const items=[...d.sel].map(id=>({player:id,name:S.players[id]?.name||S.id.name,drink:d.drink,reason,photo}));
+  const r=await rpc("log_drinks",{...auth(),p_by:S.id.player,p_items:items});
+  if(r.error){btn.disabled=false;btn.textContent="Log it";return}
+  closeSheet();toast(items.length>1?`${items.length} drinks logged. Cheers.`:"Drink logged. Cheers.");load("drinks");
+}
+function viewDrinks(){
+  const gm=isGM(),tm=myTeam(),order=["t1","t2","t3","h"];
+  const byTeam={};order.forEach(t=>byTeam[t]=0);S.drinks.forEach(d=>byTeam[d.team]=(byTeam[d.team]||0)+1);
+  const max=Math.max(1,...Object.values(byTeam));
+  const byP={};S.drinks.forEach(d=>{const k=d.player||d.name;byP[k]=byP[k]||{name:d.name,team:d.team,n:0};byP[k].n++});
+  const top=Object.values(byP).sort((a,b)=>b.n-a.n).slice(0,5);
+  return `<button class="btn primary block" data-act="drink">Log a drink</button>
+  <div class="card"><h3>Drinks per team</h3><div class="bars">${order.map(t=>`<div class="bar"><span class="lbl">${esc(tName(t))}</span><span class="trk"><span class="fill" style="width:${byTeam[t]/max*100}%;background:${tCol(t)}"></span></span><span class="n">${byTeam[t]}</span></div>`).join("")}</div></div>
+  ${top.length?`<div class="card"><h3>Thirstiest people</h3>${top.map((p,i)=>`<div class="row"><span class="mono muted">${i+1}</span><span class="avatar" style="background:${tCol(p.team)}">${esc((p.name||"?")[0])}</span><div class="grow"><b>${esc(p.name)}</b><div class="muted small">${esc(tName(p.team))}</div></div><span class="mono" style="font-size:18px;font-weight:700">${p.n}</span></div>`).join("")}</div>`:""}
+  <h3>Drink log</h3>
+  <div class="feed">${S.drinks.length?S.drinks.map(d=>`<article class="post"><div class="head"><span class="avatar" style="background:${tCol(d.team)};width:26px;height:26px;font-size:12px">${esc((d.name||"?")[0])}</span><span style="color:var(--ink)">${esc(d.name)}</span><span>${esc(tName(d.team))}</span><span>· ${fmtT(d.ts)}</span>${S.cfg?.best_photo===d.id?`<span class="tag yolk">Best photo</span>`:""}</div>
+    <div class="body"><b>${esc(d.drink)}</b> · ${esc(d.reason)}</div>${photoBtn(d.photo)}
+    <div class="row">${gm&&d.photo?`<button class="btn sm ghost" data-act="best" data-id="${d.id}">${S.cfg?.best_photo===d.id?"Best photo ✓":"Pick as best photo"}</button>`:""}${d.team===tm||gm?`<button class="btn sm ghost" data-act="delDrink" data-id="${d.id}">Remove</button>`:""}</div></article>`).join(""):`<div class="empty">No drinks yet. The first wrong bar will show up here.</div>`}</div>`;
+}
+
+/* ================= seeker: clues ================= */
+function myFeed(){
+  const tm=myTeam(),items=[];
+  (S.hints||[]).forEach((h,i)=>items.push({ts:ms(h.at),kind:"hint",html:`<div class="head"><span class="tag yolk">Hint ${i+1}</span><span>${fmtT(h.at)}</span></div><div class="body">${esc(h.text)}</div>`}));
+  S.clues.filter(c=>c.to_team==="all"||c.to_team===tm).forEach(c=>items.push({ts:ms(c.ts),kind:c.to_team==="all"?"":"hint",html:`<div class="head"><span class="tag">${c.to_team==="all"?"From the chickens":"Just for your team"}</span><span>${fmtT(c.ts)}</span></div>${c.text?`<div class="body">${esc(c.text)}</div>`:""}${photoBtn(c.photo)}`}));
+  S.reqs.filter(r=>r.team===tm&&r.power!=="sabotage").forEach(r=>items.push({ts:ms(r.answered_at||r.ts),kind:"hint",html:`<div class="head"><span class="tag yolk">${POWERS[r.power]?.i||""} ${POWERS[r.power]?.n||r.power}</span><span>${fmtT(r.ts)}</span></div>${r.text?`<div class="body muted">You asked: ${esc(r.text)}</div>`:""}<div class="body">${r.answer?esc(r.answer):`<span class="muted">Waiting for the chickens to answer…</span>`}</div>`}));
+  S.reqs.filter(r=>r.power==="sabotage"&&r.target===tm).forEach(r=>items.push({ts:ms(r.ts),kind:"alert",html:`<div class="head"><span class="tag bad">🍺 Sabotage</span><span>${fmtT(r.ts)}</span></div><div class="body">${esc(tName(r.team))} sabotaged you. One of you drinks now.</div><button class="btn sm" style="align-self:flex-start" data-act="drink" data-reason="Sabotaged">Log the drink</button>`}));
+  S.reqs.filter(r=>r.power==="sabotage"&&r.team===tm).forEach(r=>items.push({ts:ms(r.ts),kind:"",html:`<div class="head"><span class="tag">🍺 Sabotage sent</span><span>${fmtT(r.ts)}</span></div><div class="body">${esc(tName(r.target))} has to drink.</div>`}));
+  return items.sort((a,b)=>b.ts-a.ts);
+}
+function newClues(){const f=myFeed();return f.length&&f[0].ts>+(ls.get("ch_seen")||0)&&S.tab!=="clues"}
+function viewClues(){
+  ls.set("ch_seen",String(Date.now()));
+  const tm=myTeam(),t=T(),mine=Object.values(S.claims).filter(c=>c.team===tm),f=myFeed();
+  return `<div class="card"><h3>Your power-ups</h3>${mine.length?mine.map(c=>`<div class="power"><span class="ico">${POWERS[c.power].i}</span><div class="grow"><b>${POWERS[c.power].n}</b><p class="muted small">${c.used?"Used at "+fmtT(c.used_at):POWERS[c.power].d}</p></div>${c.used?`<span class="tag">Used</span>`:`<button class="btn sm primary" data-act="use" data-id="${esc(c.venue)}" ${t.phase!=="live"?"disabled":""}>Use</button>`}</div>`).join("<hr class='sep'>"):`<p class="muted small">None yet. Bars with a yellow ring on the map hide a power-up. The first team to claim it there gets it.</p>`}</div>
+  <h3>Clues</h3>
+  <div class="feed">${f.length?f.map(i=>`<article class="post ${i.kind}">${i.html}</article>`).join(""):`<div class="empty">${t.phase==="pre"||t.phase==="setup"?"Hints unlock during the hunt.":"No clues yet. The chickens will send some."}</div>`}</div>`;
+}
+function openUse(vid){
+  const c=S.claims[vid];if(!c)return;const pw=POWERS[c.power];
+  let b=`<div class="row"><h2 class="grow">${pw.i} ${pw.n}</h2><button class="x" data-act="close" aria-label="Close">×</button></div><p class="muted">${pw.d}</p>`;
+  if(c.power==="question")b+=`<label class="fld" for="useText">Your yes/no question<input type="text" id="useText" maxlength="120" placeholder="Is the bar on a corner?"></label>`;
+  if(c.power==="sabotage")b+=`<div class="section"><h3>Which team drinks</h3><div class="chips">${SEEKERS.filter(x=>x!==myTeam()).map(x=>`<button class="chip" data-target="${x}" aria-pressed="false">${esc(tName(x))}</button>`).join("")}</div></div>`;
+  b+=`<button class="btn primary block" data-act="doUse" data-id="${esc(vid)}">Use it now</button>`;
+  openSheet(b);
+}
+async function doUse(vid){
+  const c=S.claims[vid];if(!c||c.used)return;let text="",target="";
+  if(c.power==="question"){text=($("#useText")?.value||"").trim();if(!text)return toast("Type your question.")}
+  if(c.power==="sabotage"){target=document.querySelector("[data-target][aria-pressed=true]")?.dataset.target;if(!target)return toast("Pick a team.")}
+  const lastV=S.visits.slice().sort((a,b)=>ms(b.ts)-ms(a.ts))[0];
+  const r=await rpc("use_power",{...auth(),p_venue:vid,p_text:text,p_target:target||"",p_spot:lastV?(venue(lastV.venue)?.name||""):""});
+  if(r.error)return;closeSheet();
+  toast(c.power==="peek"?"Next zone revealed on the map.":c.power==="sabotage"?"Sabotage sent.":"Sent. The answer will appear in Clues.");
+  await load("claims");if(c.power==="peek"){S.tab="hunt";render()}
+}
+
+/* ================= seeker: team ================= */
+function viewTeam(){
+  const tm=myTeam(),members=teamMembers(tm),visits=S.visits.slice().sort((a,b)=>ms(a.ts)-ms(b.ts));
+  return `<div class="card"><div class="row"><span class="tdot" style="background:${tCol(tm)};width:16px;height:16px"></span><h2 class="grow">${esc(tName(tm))}</h2></div>
+  <div class="chips">${members.map(p=>`<span class="chip">${esc(p.name)}${p.id===S.id.player?" (you)":""}</span>`).join("")}</div></div>
+  <div class="card"><h3>Live location</h3>
+    <label class="switch"><input type="checkbox" id="gpsT" data-act="gpsToggle" ${S.gps.on?"checked":""}>Share my location with the chickens</label>
+    <label class="switch"><input type="checkbox" id="wakeT" data-act="wakeToggle" ${S.gps.wake?"checked":""}>Keep the screen on while this page is open</label>
+    <p class="muted small">Your phone only sends its position while this page is open. If you lock your phone, the chickens see your last spot until you open it again. Keeping the screen on helps, but uses more battery.</p>
+    ${S.gps.pos?`<p class="small">Last fix ${ago(S.gps.pos.ts)}, accurate to about ${Math.round(S.gps.pos.acc)} m.</p>`:""}</div>
+  <div class="card"><h3>Your route</h3>${visits.length?visits.map(v=>`<div class="row small"><span class="mono muted">${fmtT(v.ts)}</span><span>${esc(venue(v.venue)?.name||"?")}</span></div>`).join(""):`<p class="muted small">No bars checked yet.</p>`}</div>
+  <div class="card"><h3>Rules</h3>${rulesHTML()}${S.cfg?.meet?`<p class="small muted">Start point: ${esc(S.cfg.meet)}</p>`:""}</div>
+  <div class="card"><h3>Tip</h3><p class="small muted">Add this page to your home screen (Share → Add to Home Screen on iPhone, ⋮ → Add to Home screen on Android) so it opens like an app.</p></div>
+  <button class="btn ghost" data-act="leave">Log out on this phone</button>`;
+}
+
+/* ================= chickens: live ================= */
+const inbox=()=>S.reqs.filter(r=>!r.answer&&!r.dismissed).sort((a,b)=>ms(a.ts)-ms(b.ts));
+function viewLive(){
+  const t=T(),hide=venue(S.gm?.secret?.hideout),locs=S.gm?.locations||[],visits=S.gm?.visits||[];
+  return `${!S.gm?`<div class="empty">Loading the chicken view…</div>`:""}
+  ${S.gm&&!hide?`<div class="banner info">Set your hideout in Setup (or tap your pub on the map) so distances show here.</div>`:""}
+  ${inbox().length?`<div class="section"><h3>Needs your answer · ${inbox().length}</h3>${inbox().map(r=>reqCard(r,locs,hide)).join("")}</div>`:""}
+  ${mapSlot()}
+  <div class="section"><h3>Teams</h3>${SEEKERS.map(tm=>{const f=S.found[tm];const tl=locs.filter(l=>l.team===tm);const vs=visits.filter(v=>v.team===tm).sort((a,b)=>ms(b.ts)-ms(a.ts));const dr=S.drinks.filter(d=>d.team===tm).length;
+    return `<div class="card"><div class="row"><span class="tdot" style="background:${tCol(tm)};width:14px;height:14px"></span><b class="grow">${esc(tName(tm))}</b>${f?`<span class="tag ok">Found ${fmtT(f.ts)}</span>`:""}</div>
+    <div class="small">${tl.length?tl.map(l=>`<div>${esc(l.name)}: ${ago(l.ts)}${hide?` · ${Math.round(dist(l,hide))} m from you, ${bearing(l,hide)} of them`:""}</div>`).join(""):`<span class="muted">No live locations yet</span>`}</div>
+    <div class="small muted">${vs.length} bars checked · ${dr} drinks${vs[0]?` · last: ${esc(venue(vs[0].venue)?.name||"?")} ${fmtT(vs[0].ts)}`:""}</div>
+    ${vs.length?`<details class="small"><summary class="muted">Route</summary>${vs.map(v=>`<div>${fmtT(v.ts)} · ${esc(venue(v.venue)?.name||"?")}</div>`).join("")}</details>`:""}
+    <div class="row">${f?`<button class="btn sm ghost" data-act="unfound" data-id="${tm}">Undo found</button>`:`<button class="btn sm primary" data-act="found" data-id="${tm}">They found us</button>`}</div></div>`}).join("")}</div>`;
+}
+function reqCard(r,locs,hide){
+  const pw=POWERS[r.power]||{i:"",n:r.power};let ui="",extra="";
+  if(r.power==="compass"){
+    const l=locs.filter(x=>x.team===r.team).sort((a,b)=>ms(b.ts)-ms(a.ts))[0];
+    if(l&&hide)extra=` Suggested: <b>${bearing(l,hide)}</b> (from ${esc(l.name)}'s live spot).`;
+    ui=`<div class="chips">${DIRS.map(d=>`<button class="chip" data-act="answer" data-id="${r.id}" data-a="Walk ${d}">${d}</button>`).join("")}</div>`;
+  }else if(r.power==="question")ui=`<div class="chips">${["Yes","No","Can't say"].map(a=>`<button class="chip" data-act="answer" data-id="${r.id}" data-a="${a}">${a}</button>`).join("")}</div>`;
+  else if(r.power==="hint")ui=`<button class="btn sm primary" style="align-self:flex-start" data-act="clueSheet" data-id="${r.id}" data-team="${r.team}">Write the clue</button>`;
+  else ui=`<button class="btn sm" style="align-self:flex-start" data-act="dismiss" data-id="${r.id}">Got it</button>`;
+  return `<div class="post ${r.power==="sabotage"?"alert":"hint"}"><div class="head"><span class="tag yolk">${pw.i} ${pw.n}</span><span class="tdot" style="background:${tCol(r.team)}"></span><span>${esc(tName(r.team))} · ${fmtT(r.ts)}</span></div>
+  <div class="body">${r.power==="sabotage"?`They sabotaged ${esc(tName(r.target))}.`:r.text?esc(r.text):r.power==="compass"?`Which way should they walk?${r.spot?" Last bar: "+esc(r.spot)+".":""}${extra}`:"They want a bonus clue."}</div>${ui}</div>`;
+}
+
+/* ================= chickens: clues ================= */
+function viewGMClues(){
+  const t=T(),hs=(S.gm?.secret?.hints||[]).filter(h=>h.text);
+  return `<button class="btn primary block" data-act="clueSheet">Send a clue</button>
+  <div class="card"><h3>Timed hints</h3>${hs.length?hs.map(h=>{const on=t.st&&t.el>=h.min*60000;return `<div class="row small"><span class="mono muted">${t.st?fmtT(t.st+h.min*60000):"+"+h.min+"m"}</span><span class="grow">${esc(h.text)}</span>${on?`<span class="tag ok">Out</span>`:`<span class="tag">Locked</span>`}</div>`}).join(""):`<p class="muted small">No timed hints yet. Add them in Setup.</p>`}</div>
+  <h3>Sent clues</h3><div class="feed">${S.clues.length?S.clues.slice().sort((a,b)=>ms(b.ts)-ms(a.ts)).map(c=>`<article class="post"><div class="head"><span class="tag">${c.to_team==="all"?"All teams":esc(tName(c.to_team))}</span><span>${fmtT(c.ts)}</span></div>${c.text?`<div class="body">${esc(c.text)}</div>`:""}${photoBtn(c.photo)}<button class="btn sm ghost" style="align-self:flex-start" data-act="delClue" data-id="${c.id}">Delete</button></article>`).join(""):`<div class="empty">Nothing sent yet.</div>`}</div>`;
+}
+function openClueSheet(to,reqId){
+  openSheet(`<div class="row"><h2 class="grow">${reqId?"Bonus clue for "+esc(tName(to)):"Send a clue"}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>
+  <label class="fld" for="clText">Clue<textarea id="clText" maxlength="300" placeholder="We can hear a train."></textarea></label>
+  ${reqId?"":`<label class="fld" for="clPhoto">Photo (optional)<input type="file" id="clPhoto" accept="image/*"></label>
+  <label class="fld" for="clTo">Send to<select id="clTo"><option value="all">All teams</option>${SEEKERS.map(x=>`<option value="${x}">${esc(tName(x))} only</option>`).join("")}</select></label>`}
+  <button class="btn primary block" data-act="sendClue" ${reqId?`data-id="${reqId}"`:""} id="clSend">Send clue</button>`);
+}
+async function sendClue(reqId){
+  const text=$("#clText").value.trim();
+  if(reqId){if(!text)return toast("Type the clue first.");const r=await rpc("gm_answer",{p_pin:S.id.pin,p_id:reqId,p_answer:text,p_dismiss:null},"Clue sent.");if(!r.error)closeSheet();return}
+  const to=$("#clTo").value,file=$("#clPhoto").files[0];
+  if(!text&&!file)return toast("Write a clue or add a photo.");
+  const b=$("#clSend");b.disabled=true;b.textContent="Sending…";
+  let photo="";try{photo=await uploadPhoto(file)}catch(e){toast("The photo didn't upload.")}
+  const r=await rpc("gm_clue",{p_pin:S.id.pin,p_text:text,p_photo:photo,p_to:to},"Clue sent.");
+  if(!r.error)closeSheet();else{b.disabled=false;b.textContent="Send clue"}
+}
+
+/* ================= chickens: setup ================= */
+function ensureDraft(){
+  if(S.draft||!S.gm||!S.cfg)return;const c=S.cfg,sec=S.gm.secret||{};const p=londonParts(ms(c.start_at));
+  S.draft={date:p.date,time:p.time,dur:c.duration_min||120,meet:c.meet||"",hideout:sec.hideout||"",
+    hints:((sec.hints&&sec.hints.length)?sec.hints:[{min:15,text:""},{min:45,text:""},{min:75,text:""},{min:100,text:""}]).map(h=>({...h})),
+    powerBars:Object.keys(POWERS).map(k=>({power:k,venue:(c.power_bars||[]).find(x=>x.power===k)?.venue||""})),
+    zones:(c.zones||[]).slice(),
+    teams:["t1","t2","t3","h"].map(id=>({id,name:tName(id),members:(team(id).members||[]).join("\n"),pin:""}))};
+}
+function viewSetup(){
+  ensureDraft();const d=S.draft;if(!d)return`<div class="empty">Loading setup…</div>`;
+  const t=T(),pins=new Set((S.gm?.pins_set||[]).map(r=>r==="gm"?"h":r));
+  const vlist=venues().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const opts=sel=>`<option value="">None</option>`+vlist.map(v=>`<option value="${esc(v.id)}" ${v.id===sel?"selected":""}>${esc(v.name)}</option>`).join("");
+  const hidden=S.venues.filter(v=>v.hidden);
+  return `<div class="banner info"><span>Only chickens see this tab. Changes go live when you press <b>Save setup</b>.</span></div>
+  <div class="card"><h3>1 · Teams and PINs</h3><p class="muted small">Players pick their name from the list and enter their team's PIN. Leave a PIN empty to keep the current one.</p>
+    ${d.teams.map((tm,i)=>`<div class="section"><div class="row"><span class="tdot" style="background:${tCol(tm.id)};width:14px;height:14px"></span><b class="grow">${tm.id==="h"?"The Chickens":"Team "+i}</b>${pins.has(tm.id)?`<span class="tag ok">PIN set</span>`:`<span class="tag bad">No PIN yet</span>`}</div>
+      ${tm.id==="h"?"":`<label class="fld" for="suTn${i}">Team name<input type="text" id="suTn${i}" maxlength="24" value="${esc(tm.name)}"></label>`}
+      <div class="grid2"><label class="fld" for="suTm${i}">Members (one per line)<textarea id="suTm${i}" rows="4">${esc(tm.members)}</textarea></label>
+      <label class="fld" for="suTp${i}">${tm.id==="h"?"New chicken PIN":"New team PIN"}<input type="tel" id="suTp${i}" maxlength="12" autocomplete="off" placeholder="${pins.has(tm.id)?"Keep current":"e.g. 4821"}" value="${esc(tm.pin)}"></label></div></div>${i<3?"<hr class='sep'>":""}`).join("")}
+  </div>
+  <div class="card"><h3>2 · Your hideout and the zone</h3>
+    <label class="fld" for="suHide">The pub you'll sit in<select id="suHide">${opts(d.hideout)}</select></label>
+    <p class="muted small">Only the chickens can see this. Not in the list? Add it under step 6.</p>
+    <div class="row"><button class="btn primary sm" data-act="genZones">${d.zones.length?"Redraw the zones":"Draw the zones"}</button><span class="muted small">4 circles: ${RADII.join(" → ")} m. Your pub is never in the middle.</span></div>
+  </div>
+  ${mapSlot(S.pickMode?"Tap the map where the bar is":"")}
+  <div class="card"><h3>3 · Time</h3>
+    <div class="grid2"><label class="fld" for="suDate">Date<input type="date" id="suDate" value="${d.date}"></label><label class="fld" for="suTime">Start (London time)<input type="time" id="suTime" value="${d.time}"></label></div>
+    <label class="fld" for="suDur">Length in minutes (the zone shrinks every quarter)<input type="number" id="suDur" min="20" max="360" step="5" value="${d.dur}"></label>
+    <label class="fld" for="suMeet">Where seekers start<input type="text" id="suMeet" maxlength="80" value="${esc(d.meet)}" placeholder="Shoreditch High Street station"></label>
+    <div class="row">${t.phase==="live"?`<button class="btn sm danger" data-act="endNow">End the hunt now</button>`:t.phase==="over"&&S.cfg?.ended?`<button class="btn sm" data-act="resume">Resume the hunt</button>`:`<button class="btn sm" data-act="startNow">Start the hunt now (for testing)</button>`}</div>
+  </div>
+  <div class="card"><h3>4 · Timed hints</h3><p class="muted small">Released to all teams at the minute you set, counted from the start. Nobody can read them before that.</p>
+    ${d.hints.map((h,i)=>`<div class="row"><input type="number" id="suHm${i}" min="0" max="360" value="${h.min}" aria-label="Minute for hint ${i+1}" style="width:76px"><input type="text" id="suHt${i}" maxlength="200" value="${esc(h.text)}" style="flex:1;min-width:0" placeholder="${["The pub has an animal in its name","There's a station within 300 m","We can see a church","Pints here cost £6.80","We're on a corner"][i%5]}"></div>`).join("")}
+    ${d.hints.length<8?`<button class="btn sm ghost" data-act="addHint" style="align-self:flex-start">Add a hint</button>`:""}</div>
+  <div class="card"><h3>5 · Power-up bars</h3><p class="muted small">Seekers see these on the map. The first team to claim one gets it.</p>
+    ${d.powerBars.map((p,i)=>`<label class="fld" for="suP${i}"><span>${POWERS[p.power].i} ${POWERS[p.power].n}</span><select id="suP${i}">${opts(p.venue)}</select></label>`).join("")}
+    <button class="btn sm" data-act="randPower" style="align-self:flex-start">Pick random bars in the zone</button></div>
+  <div class="card"><h3>6 · Bars</h3>
+    <p class="muted small">${venues().length} bars in the game. Load more from OpenStreetMap, place one by hand, or tap a bar on the map to remove it.</p>
+    <div class="row"><button class="btn sm" data-act="osm">Find bars on OpenStreetMap</button></div>
+    ${S.osm?(S.osm.loading?`<p class="small muted">Searching OpenStreetMap…</p>`:S.osm.error?`<p class="small" style="color:var(--comb)">${esc(S.osm.error)}</p>`:`<p class="small">Found ${S.osm.total} pubs and bars, ${S.osm.fresh.length} not in the game yet.</p>${S.osm.fresh.length?`<details class="small"><summary class="muted">Show them</summary>${S.osm.fresh.map(x=>`<div>${esc(x.name)}${x.address?" · "+esc(x.address):""}</div>`).join("")}</details><button class="btn sm primary" data-act="osmAdd" style="align-self:flex-start">Add ${S.osm.fresh.length} bars</button>`:""}`):""}
+    <hr class="sep">
+    <p class="muted small" id="pickInfo">${S.pickMode?(S.pick?"Spot set. Give it a name below.":"Tap the map above where the bar is."):"Missing one? Place it on the map."}</p>
+    ${S.pickMode?`<label class="fld" for="suXn">Name<input type="text" id="suXn" maxlength="40"></label><label class="fld" for="suXa">Street<input type="text" id="suXa" maxlength="60"></label><div class="row"><button class="btn sm primary" data-act="addBar">Add bar</button><button class="btn sm ghost" data-act="cancelPick">Cancel</button></div>`:`<button class="btn sm" data-act="startPick" style="align-self:flex-start">Place a bar on the map</button>`}
+    ${hidden.length?`<details class="small"><summary class="muted">${hidden.length} removed bars</summary>${hidden.map(v=>`<div class="row"><span class="grow">${esc(v.name)}</span><button class="btn sm ghost" data-act="hideVenue" data-id="${esc(v.id)}" data-h="0">Put back</button></div>`).join("")}</details>`:""}
+  </div>
+  <button class="btn primary block" data-act="saveSetup" id="suSave">Save setup</button>
+  <div class="card"><h3>Reset</h3><p class="muted small">Clears drinks, clues, visits, locations, claims and found teams, so you can test and start clean. Setup stays.</p>
+  ${S.resetArm?`<div class="row"><button class="btn sm danger" data-act="reset" data-p="0">Wipe game data</button><button class="btn sm danger" data-act="reset" data-p="1">Wipe game data and players</button><button class="btn sm ghost" data-act="resetCancel">Cancel</button></div>`:`<button class="btn sm danger" data-act="resetArm" style="align-self:flex-start">Reset game data</button>`}</div>
+  <button class="btn ghost" data-act="leave">Log out on this phone</button>`;
+}
+function readDraft(){
+  const d=S.draft;if(!d||!$("#suDate"))return;
+  const val=(id,f)=>{const el=document.getElementById(id);return el?el.value:f};
+  d.date=val("suDate",d.date)||d.date;d.time=val("suTime",d.time)||d.time;d.dur=+val("suDur",d.dur)||120;d.meet=val("suMeet",d.meet);d.hideout=val("suHide",d.hideout);
+  d.teams.forEach((tm,i)=>{tm.name=val("suTn"+i,tm.name);tm.members=val("suTm"+i,tm.members);tm.pin=String(val("suTp"+i,tm.pin)).trim()});
+  d.hints=d.hints.map((h,i)=>({min:Math.max(0,+val("suHm"+i,h.min)||0),text:String(val("suHt"+i,h.text)).trim()}));
+  d.powerBars=d.powerBars.map((p,i)=>({power:p.power,venue:val("suP"+i,p.venue)}));
+}
+document.addEventListener("input",e=>{if(S.tab==="setup"&&$("#main").contains(e.target))readDraft()});
+function genZones(h){
+  const hp=P(h.lng,h.lat),n=RADII.length,c=[];const rnd=(a,b)=>a+Math.random()*(b-a),ang=()=>Math.random()*Math.PI*2;
+  let a=ang(),dd=RADII[n-1]*rnd(.35,.7);c[n-1]=[hp[0]+Math.cos(a)*dd,hp[1]+Math.sin(a)*dd];
+  for(let i=n-2;i>=0;i--){const slack=RADII[i]-RADII[i+1];a=ang();dd=slack*rnd(.35,.85);c[i]=[c[i+1][0]+Math.cos(a)*dd,c[i+1][1]+Math.sin(a)*dd]}
+  return c.map((p,i)=>{const q=UNP(p[0],p[1]);return{lat:+q.lat.toFixed(6),lng:+q.lng.toFixed(6),r:RADII[i]}});
+}
+function randPower(){
+  readDraft();const d=S.draft,z=d.zones[0],h=venue(d.hideout);
+  let pool=venues().filter(v=>(!z||dist(v,z)<=z.r)&&v.id!==d.hideout&&(!h||dist(v,h)>220));const picked=[];
+  d.powerBars.forEach(p=>{pool=pool.filter(v=>picked.every(q=>dist(v,q)>200));const v=pool.length?pool[Math.floor(Math.random()*pool.length)]:null;p.venue=v?v.id:"";if(v)picked.push(v)});
+  render();
+}
+async function saveSetup(){
+  readDraft();const d=S.draft;const st=londonToMs(d.date,d.time);if(isNaN(st))return toast("Check the date and time.");
+  for(const tm of d.teams)if(tm.pin&&tm.pin.length<3)return toast("PINs need at least 3 characters.");
+  const btn=$("#suSave");btn.disabled=true;btn.textContent="Saving…";
+  const r=await rpc("gm_save",{p_pin:S.id.pin,p_cfg:{start_at:new Date(st).toISOString(),duration_min:Math.max(20,Math.min(360,d.dur)),meet:d.meet,zones:d.zones,power_bars:d.powerBars},
+    p_secret:{hideout:d.hideout,hints:d.hints.slice().sort((a,b)=>a.min-b.min)}});
+  if(r.error){btn.disabled=false;btn.textContent="Save setup";return}
+  for(const tm of d.teams){
+    const members=tm.members.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
+    const x=await rpc("gm_team",{p_pin:S.id.pin,p_id:tm.id,p_name:tm.name,p_members:members,p_new_pin:tm.pin||""});
+    if(x.error){btn.disabled=false;btn.textContent="Save setup";return}
+    if(tm.id==="h"&&tm.pin){S.id.pin=tm.pin;saveId()}
+  }
+  toast("Setup saved. Everyone sees it now.");
+  S.draft=null;fitKey="";await Promise.all([load("config"),load("teams"),loadPrivate()]);render();
+}
+async function osmSearch(){
+  readDraft();const z=S.draft.zones[0]||{lat:CENTER.lat,lng:CENTER.lng,r:900};
+  S.osm={loading:true};render();
+  const q=`[out:json][timeout:25];nwr["amenity"~"^(pub|bar|biergarten)$"](around:${Math.round(z.r+150)},${z.lat},${z.lng});out center tags;`;
+  try{
+    const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)});
+    if(!res.ok)throw new Error("status "+res.status);
+    const j=await res.json();
+    const items=j.elements.map(e=>({id:"osm-"+e.type[0]+e.id,name:e.tags?.name,address:[e.tags?.["addr:housenumber"],e.tags?.["addr:street"]].filter(Boolean).join(" "),lat:e.lat??e.center?.lat,lng:e.lon??e.center?.lon,source:"osm"})).filter(x=>x.name&&x.lat);
+    const fresh=items.filter(x=>!S.venues.some(v=>v.id===x.id||(norm(v.name)===norm(x.name)&&dist(v,x)<120)));
+    S.osm={total:items.length,fresh};
+  }catch(e){console.error(e);S.osm={error:"OpenStreetMap didn't answer. Try again in a minute."}}
+  render();
+}
+
+/* ================= awards ================= */
+function viewAwards(){
+  const t=T(),fs=SEEKERS.filter(x=>S.found[x]).map(x=>[x,S.found[x]]).sort((a,b)=>ms(a[1].ts)-ms(b[1].ts));
+  const st=t.st||0,mins=v=>Math.max(0,Math.round((ms(v)-st)/60000));
+  const byP={};S.drinks.forEach(d=>{const k=d.player||d.name;byP[k]=byP[k]||{name:d.name,team:d.team,n:0};byP[k].n++});
+  const topP=Object.values(byP).filter(p=>p.team!=="h").sort((a,b)=>b.n-a.n)[0];
+  const tc={};SEEKERS.forEach(x=>tc[x]=S.drinks.filter(d=>d.team===x).length);
+  const thirsty=SEEKERS.slice().sort((a,b)=>tc[b]-tc[a])[0];
+  const visits=S.gm?.visits;const vc={};if(visits)SEEKERS.forEach(x=>vc[x]=visits.filter(v=>v.team===x).length);
+  const tour=visits?SEEKERS.slice().sort((a,b)=>vc[b]-vc[a])[0]:null;
+  const pc={};SEEKERS.forEach(x=>pc[x]=Object.values(S.claims).filter(c=>c.team===x).length);
+  const power=SEEKERS.slice().sort((a,b)=>pc[b]-pc[a])[0];
+  const sab=S.reqs.filter(r=>r.power==="sabotage"),chickD=S.drinks.filter(d=>d.team==="h").length,notFound=SEEKERS.filter(x=>!S.found[x]);
+  const best=S.drinks.find(d=>d.id===S.cfg?.best_photo)||S.drinks.find(d=>d.photo);
+  const A=[];
+  if(fs[0])A.push(["🏆","Chicken Catchers",`${tName(fs[0][0])} found the nest after ${mins(fs[0][1].ts)} minutes.`]);
+  if(fs.length>1)A.push(["🥈","Runners-up",`${tName(fs[1][0])}, ${mins(fs[1][1].ts)} minutes.`]);
+  if(notFound.length&&t.phase==="over")A.push(["🧭","Lost in Shoreditch",`${notFound.map(x=>tName(x)).join(" and ")} never made it. Next round is on them.`]);
+  else if(fs.length===3)A.push(["🐢","Last to the nest",`${tName(fs[2][0])} arrived last and buys the round.`]);
+  if(topP)A.push(["🍺","Thirstiest player",`${topP.name} (${tName(topP.team)}) with ${topP.n} drinks.`]);
+  if(tc[thirsty])A.push(["🍻","Thirstiest team",`${tName(thirsty)} with ${tc[thirsty]} drinks.`]);
+  if(tour&&vc[tour])A.push(["🗺️","Grand tour",`${tName(tour)} checked ${vc[tour]} bars.`]);
+  if(pc[power])A.push(["🎁","Power players",`${tName(power)} grabbed ${pc[power]} power-up${pc[power]>1?"s":""}.`]);
+  if(sab.length)A.push(["😈","Saboteurs",sab.map(s=>`${tName(s.team)} → ${tName(s.target)}`).join(", ")+"."]);
+  A.push(["🐔","Meanwhile, at the nest",`The chickens drank ${chickD} while they waited.`]);
+  return `<section class="hero"><h1>${t.phase==="over"?"Awards":"Awards <span>so far</span>"}</h1>${t.phase!=="over"?`<p class="muted">Preview for the chickens. Seekers see this once the hunt ends.</p>`:""}</section>
+  <div class="card">${A.map(a=>`<div class="award"><span class="ico">${a[0]}</span><div><div class="t">${esc(a[1])}</div><div class="muted">${esc(a[2])}</div></div></div>`).join("<hr class='sep'>")}</div>
+  ${best?`<div class="card"><h3>📸 Best photo</h3>${photoBtn(best.photo)}<p class="muted small">${esc(best.name)}, ${esc(best.drink)} · ${esc(best.reason)}</p></div>`:""}`;
+}
+
+/* ================= sheet ================= */
+function openSheet(html){$("#sheetRoot").innerHTML=`<div class="backdrop" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true"><div class="wrap"><div class="grab"></div>${html}</div></div>`}
+function closeSheet(){$("#sheetRoot").innerHTML=""}
+
+/* ================= events ================= */
+const gmp=()=>({p_pin:S.id.pin});
+document.addEventListener("click",async e=>{
+  const tb=e.target.closest("[data-tab]");if(tb){S.tab=tb.dataset.tab;S.pickMode=false;S.pick=null;render();window.scrollTo(0,0);return}
+  const jt=e.target.closest("[data-jt]");if(jt){S.joinTeam=jt.dataset.jt;S.joinName=null;render();return}
+  const jn=e.target.closest("[data-jn]");if(jn){S.joinName=jn.dataset.jn;render();return}
+  const who=e.target.closest("[data-who]");if(who&&S.dr){const id=who.dataset.who;S.dr.sel.has(id)?S.dr.sel.delete(id):S.dr.sel.add(id);who.setAttribute("aria-pressed",S.dr.sel.has(id));return}
+  const what=e.target.closest("[data-what]");if(what&&S.dr){S.dr.drink=what.dataset.what;document.querySelectorAll("[data-what]").forEach(b=>b.setAttribute("aria-pressed",b===what));return}
+  const tg=e.target.closest("[data-target]");if(tg){document.querySelectorAll("[data-target]").forEach(b=>b.setAttribute("aria-pressed",b===tg));return}
+  const a=e.target.closest("[data-act]");if(!a)return;
+  const act=a.dataset.act,id=a.dataset.id;
+  switch(act){
+    case"close":closeSheet();break;
+    case"join":doJoin();break;
+    case"zfit":fitZone();break;
+    case"locate":if(S.gps.pos)map.setView([S.gps.pos.lat,S.gps.pos.lng],17);else{gpsStart();toast("Finding you…")}break;
+    case"toggleAll":S.showAll=!S.showAll;render();break;
+    case"venue":openVenue(id);break;
+    case"checked":markChecked(id);break;
+    case"claim":claimPower(id);break;
+    case"drink":openDrink({reason:a.dataset.reason});break;
+    case"saveDrink":saveDrink();break;
+    case"delDrink":if((await rpc("delete_drink",{...auth(),p_id:id},"Removed.")).error)return;load("drinks");break;
+    case"best":rpc("gm_patch",{...gmp(),p_patch:{best_photo:S.cfg?.best_photo===id?"":id}},"Best photo picked.");break;
+    case"zoom":openSheet(`<div class="row"><span class="grow"></span><button class="x" data-act="close" aria-label="Close">×</button></div><img src="${esc(imgUrl(a.dataset.img))}" alt="Photo" style="border-radius:12px;width:100%">`);break;
+    case"use":openUse(id);break;
+    case"doUse":doUse(id);break;
+    case"gpsOn":gpsStart();break;
+    case"leave":S.id=null;saveId();S.joinTeam=null;S.joinName=null;S.tab=null;S.gm=null;S.visits=[];S.draft=null;S.pinBad=false;gpsStop();render();break;
+    case"found":rpc("gm_found",{...gmp(),p_team:id,p_found:true},tName(id)+" found you.");break;
+    case"unfound":rpc("gm_found",{...gmp(),p_team:id,p_found:false});break;
+    case"answer":rpc("gm_answer",{...gmp(),p_id:id,p_answer:a.dataset.a,p_dismiss:null},"Answer sent.");break;
+    case"dismiss":rpc("gm_answer",{...gmp(),p_id:id,p_answer:null,p_dismiss:true});break;
+    case"clueSheet":openClueSheet(a.dataset.team||"all",id);break;
+    case"sendClue":sendClue(id);break;
+    case"delClue":rpc("gm_clue_delete",{...gmp(),p_id:id},"Deleted.");break;
+    case"setHide":{if(S.draft)S.draft.hideout=id;const r=await rpc("gm_save",{...gmp(),p_cfg:{},p_secret:{hideout:id}},"Hideout saved.");closeSheet();if(!r.error)loadPrivate();break}
+    case"hideVenue":{const r=await rpc("gm_venues",{...gmp(),p_add:null,p_hide:id,p_hidden:a.dataset.h==="1"},a.dataset.h==="1"?"Bar removed from the game.":"Bar is back.");closeSheet();if(!r.error)load("venues");break}
+    case"genZones":{readDraft();const v=venue(S.draft.hideout);if(!v)return toast("Pick your hideout pub first.");S.draft.zones=genZones(v);fitKey="";render();toast("Zones drawn. Save setup to publish them.");break}
+    case"addHint":readDraft();S.draft.hints.push({min:(S.draft.hints.at(-1)?.min||0)+15,text:""});render();break;
+    case"randPower":readDraft();if(!S.draft.zones.length)return toast("Draw the zones first.");randPower();break;
+    case"osm":osmSearch();break;
+    case"osmAdd":{const r=await rpc("gm_venues",{...gmp(),p_add:S.osm.fresh,p_hide:null,p_hidden:null});if(!r.error){toast(`${r.data} bars added.`);S.osm=null;load("venues")}break}
+    case"startPick":readDraft();S.pickMode=true;S.pick=null;render();break;
+    case"cancelPick":readDraft();S.pickMode=false;S.pick=null;render();break;
+    case"addBar":{const n=$("#suXn").value.trim(),ad=$("#suXa").value.trim();if(!S.pick)return toast("Tap the map first.");if(!n)return toast("Give the bar a name.");readDraft();
+      const r=await rpc("gm_venues",{...gmp(),p_add:[{id:"x"+Date.now().toString(36),name:n,address:ad,lat:S.pick.lat,lng:S.pick.lng,source:"added"}],p_hide:null,p_hidden:null},"Bar added.");
+      if(!r.error){S.pickMode=false;S.pick=null;await load("venues");render()}break}
+    case"saveSetup":saveSetup();break;
+    case"startNow":{const r=await rpc("gm_patch",{...gmp(),p_patch:{start_at:new Date().toISOString(),ended:false}},"The hunt has started.");if(!r.error&&S.draft){const q=londonParts(Date.now());S.draft.date=q.date;S.draft.time=q.time}load("config");break}
+    case"endNow":rpc("gm_patch",{...gmp(),p_patch:{ended:true}},"The hunt is over.");break;
+    case"resume":rpc("gm_patch",{...gmp(),p_patch:{ended:false}},"The hunt is back on.");break;
+    case"resetArm":S.resetArm=true;render();break;
+    case"resetCancel":S.resetArm=false;render();break;
+    case"reset":{S.resetArm=false;const r=await rpc("gm_reset",{...gmp(),p_players:a.dataset.p==="1"},"Game data cleared.");if(!r.error){TABLES.forEach(load);loadPrivate()}break}
+  }
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="gpsT"){e.target.checked?gpsStart():gpsStop()}
+  if(e.target.id==="wakeT"){S.gps.wake=e.target.checked;ls.set("ch_wake",S.gps.wake?"1":null);S.gps.wake?wakeOn():wakeOff()}
+  if(S.tab==="setup"&&$("#main").contains(e.target))readDraft();
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet()});
+
+render();boot();
+</script>
+</body>
+</html>
